@@ -76,11 +76,6 @@ class DFA():
             my_stack.append(my_root)
         self.root = my_stack.pop()
 
-    # Verifies if a given character belongs to the valid symbols (letters, numbers and epsilon)
-    def is_char_symbol(self, character):
-        symbols = 'ε'+'abcdefghijklmnopqrstuvwxyz0123456789'
-        return symbols.find(character) != -1
-
     def peek_stack(self, stack):
         if stack:
             return stack[-1] #Last element

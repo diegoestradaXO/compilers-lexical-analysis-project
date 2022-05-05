@@ -80,8 +80,8 @@ class Lexer():
             ignore = ignore.replace(right, '') # >
             self.ignores += ignore.split(pipe) # ∪
 
-        self.buildKeywords(grammar['keywords'])
-        self.buildTokens(grammar['tokens'])
+        self.create_keywords(grammar['keywords'])
+        self.create_tokens(grammar['tokens'])
     
     def evaluate(self, tokens):
         values = []
@@ -102,10 +102,11 @@ class Lexer():
             op = ops.pop()
                     
             values.append(self.do_operation(val1, val2, op))
+
         return values[-1]
 
  
-    def rango_chars(self, a, b):
+    def get_explicit_range(self, a, b):
         for c in range(ord(a), ord(b) + 1):
             yield chr(c)
     
@@ -135,65 +136,66 @@ class Lexer():
                 new_char = new_char.replace(m, "'" + eval(m.lower()) + "'" if eval(m.lower()) == '"' else '"' + eval(m.lower()) + '"')
 
             characters[i] = new_char
-
+        print(characters)
         self.characters['ANY'] = any_char_string
 
         for char in characters:
-            character = char.split('=', 1)
+            character = char.split('=', 1) # only splitting in the equals sign, just one split
 
             has_apostrophe = False # ' '
-            isQuote = False # " "
+            has_quotation_mark = False # " "
             last = 0
             new = ''
 
-            aEvaluar = character[1]
+            char_to_evaluate = character[1] # right side of the line
 
             final = ''
-            for i in range(len(aEvaluar)):
+            for i in range(len(char_to_evaluate)):
                 text = ''
-                if aEvaluar[i] == '"' and not isQuote and not has_apostrophe:
-                    isQuote = True
+                if char_to_evaluate[i] == '"' and not has_quotation_mark and not has_apostrophe:
+                    has_quotation_mark = True
                     last = i + 1
 
-                elif aEvaluar[i] == '"' and isQuote:
-                    isQuote = False
+                elif char_to_evaluate[i] == '"' and has_quotation_mark:
+                    has_quotation_mark = False
                     has_apostrophe = False
-                    new = aEvaluar[last:i]
+                    new = char_to_evaluate[last:i]
 
                     for i in range(len(new)):
                         if i < len(new) - 1:
                             text += new[i] + pipe
                         else:
-                            text += new[i]
+                            text += new[i] # last element, it doesnt use pipe
 
                     final += '˂' + text + '˃'
 
-                elif aEvaluar[i] == "'" and not has_apostrophe and not isQuote:
+                elif char_to_evaluate[i] == "'" and not has_apostrophe and not has_quotation_mark:
                     has_apostrophe = True
                     last = i + 1
 
-                elif aEvaluar[i] == "'" and has_apostrophe:
-                    isQuote = False
+                elif char_to_evaluate[i] == "'" and has_apostrophe:
+                    has_quotation_mark = False
                     has_apostrophe = False
-                    new = aEvaluar[last:i]
+                    new = char_to_evaluate[last:i]
 
                     for i in range(len(new)):
                         if i < len(new) - 1:
                             text += new[i] + pipe
                         else:
-                            text += new[i]
+                            text += new[i] # last element, it doesnt use pipe
 
                     final += '˂' + text + '˃'
 
-                elif aEvaluar[i] == '+' and not has_apostrophe and not isQuote:
+                elif char_to_evaluate[i] == '+' and not has_apostrophe and not has_quotation_mark:
                     final += ' + '
                 
-                elif aEvaluar[i] == '-' and not has_apostrophe and not isQuote:
+                elif char_to_evaluate[i] == '-' and not has_apostrophe and not has_quotation_mark:
                     final += ' - '
 
-                elif not has_apostrophe and not isQuote and aEvaluar[i] != ' ':
-                    final += aEvaluar[i]
-            self.characters[character[0].replace(' ', '')] = final[:-1]
+                elif not has_apostrophe and not has_quotation_mark and char_to_evaluate[i] != ' ':
+                    final += char_to_evaluate[i]
+
+            self.characters[character[0].replace(' ', '')] = final[:-1] # removing the dot
 
         for key, value in self.characters.items():
             result = ''
@@ -204,59 +206,72 @@ class Lexer():
                 resultadoA = chr(int(a[4:-1])) if a.find('CHR(') == 0 else a.replace("'", "")
                 resultadoB = chr(int(b[4:-1])) if b.find('CHR(') == 0 else b.replace("'", "")
 
-                for j in self.rango_chars(a, b):
+                for j in self.get_explicit_range(a, b):
                     if j != b:
                         result += j + pipe
                     else:
                         result += j
                 self.characters[key] = '˂' + result + '˃'
+                # print(self.characters[key])
         
-        llaves = list(self.characters.keys())
+        char_keys = list(self.characters.keys())
         valores = list(self.characters.values())
-        for i in range(len(llaves) - 1):
-            for j in range(i + 1, len(llaves)):
-                if llaves[i] in self.characters[llaves[j]]:
-                    self.characters[llaves[j]] = self.characters[llaves[j]].replace(llaves[i], self.characters[llaves[i]])
+        for i in range(len(char_keys) - 1):
+            for j in range(i + 1, len(char_keys)):
+                if char_keys[i] in self.characters[char_keys[j]]:
+                    self.characters[char_keys[j]] = self.characters[char_keys[j]].replace(char_keys[i], self.characters[char_keys[i]])
 
         for key, value in self.characters.items():
             result = self.evaluate(value)
             self.characters[key] = '˂' + result + '˃'
 
-    def buildKeywords(self, keywords):
+    def create_keywords(self, keywords):
+        # result
+        # keywords = {
+        #   name: value
+        # }
         for kw in keywords:
             kw = kw.replace(' ', '')
             keyword, word = kw.split('=')
             word = word[:-1]
             
             self.keywords[word.replace('"', '')] = keyword.replace('"', '')
+        # print(self.keywords)
 
-    def buildTokens(self, tokens):
+    def create_tokens(self, tokens):
+        # result 
+        # tokens = {
+        #   (tokenName, {expresion, excepts}) 
+        # }
         listCharacters = list(self.characters.keys())
         listCharacters.sort(key = len)
         listCharacters.reverse()
         for token in tokens:
             token_ = token.split('=', 1)
-            isQuote = False # " "
+            has_quotation_mark = False
             last = 0
             new = ""
             ident = token_[0].replace(' ', '')
-            aEvaluar = token_[1]
+            token_to_evaluate = token_[1]
             final = ""
-            for i in range(len(aEvaluar)):
+            for i in range(len(token_to_evaluate)):
                 text = ""
-                if aEvaluar[i] == '"' and not isQuote:
-                    isQuote = True
+                if token_to_evaluate[i] == '"' and not has_quotation_mark:
+                    has_quotation_mark = True
                     last = i + 1
-                elif aEvaluar[i] == '"' and isQuote:
-                    isQuote = False
+                elif token_to_evaluate[i] == '"' and has_quotation_mark:
+                    has_quotation_mark = False
                     has_apostrophe = False
-                    new = aEvaluar[last:i]
+                    new = token_to_evaluate[last:i]
                     for i in range(len(new)):
                         text += new[i]
                     final += left + text + right
-                elif not isQuote and aEvaluar[i] != ' ':
-                    final += aEvaluar[i]
+                elif not has_quotation_mark and token_to_evaluate[i] != ' ':
+                    final += token_to_evaluate[i]
             final = final.replace('|', pipe)
+            # end of string manipulationg
+
+            # print(final[:-1])
             self.tokens[ident] = {}
             self.tokens[ident]['expresion'] = final[:-1]
             self.tokens[ident]['except'] = {}
@@ -277,6 +292,8 @@ class Lexer():
                 self.tokens[key]['expresion'] = self.tokens[key]['expresion'].replace('[', '˂')
                 self.tokens[key]['expresion'] = self.tokens[key]['expresion'].replace(']', '˃Ʒ')
 
+        # print(self.tokens.items())
+        # print(listCharacters)
         for key, value in self.tokens.items():
             newToken = value['expresion']
             for character in listCharacters:
@@ -284,12 +301,13 @@ class Lexer():
                     newToken = newToken.replace(character, self.characters[character])
 
             value['expresion'] = newToken
+        # print(self.tokens.items())
 
 atg_file = []
 
-my_file = input('Write the name of the ATG file: ')
+file_name = input('Write the name of the ATG file: ')
 
-with open(my_file, 'r') as reader:
+with open(file_name, 'r') as reader:
     for line in reader:
         if line != '\n':
             atg_file.append(line.strip())
@@ -318,8 +336,8 @@ for k, v in tokens.items():
         if i not in '˂˃∪ƷΔ∩' and i not in acc_chars:
             acc_chars.append(i)
 expression = '∪'.join(['˂˂' + token + '˃∫˃' for token in tokens.values()])
-my_file = input('Write the name of the file: ')
-filee = open(my_file, 'r', encoding='utf-8', errors='replace')
+file_name = input('Write the name of the file: ')
+filee = open(file_name, 'r', encoding='utf-8', errors='replace')
 w = ''.join(filee.readlines())
 regexp = regex.fix_regex_lexer(expression)
 automata = DFA(regexp, acc_chars, [t for t in tokens.keys()])
@@ -331,14 +349,14 @@ while pos < len(w):
         for excepcion in exceptions[automata.tokens[aceptacion]].keys():
             if resultado == excepcion:
                 permitido = False
-                print('-', repr(excepcion), 'is keyword', exceptions[automata.tokens[aceptacion]][excepcion], '-')
+                print(repr(excepcion), 'is keyword', exceptions[automata.tokens[aceptacion]][excepcion])
                 break
         if permitido:
             if automata.tokens[aceptacion] not in ignores:
-                print('-', repr(resultado), '->', automata.tokens[aceptacion], '-')
+                print(repr(resultado), '->', automata.tokens[aceptacion])
     else:
         if resultado != '':
-            print('-', repr(resultado), 'not expected', '-')
+            print(repr(resultado), 'not expected')
 '''
 
 f = open(f'scanner{analisislexico.compiler}.py', 'w', encoding='utf-8')
